@@ -46,9 +46,12 @@ class Order: BindableObject, Codable {
 struct ContentView : View {
     @ObjectBinding var order = Order()
     
+    @State var confirmationMessage = ""
+    @State var showingConfirmation = false
+    
     var body: some View {
         NavigationView {
-            VStack {
+            Form {
                 Section {
                     Picker(selection: $order.type, label: Text("Select your cake type")) {
                         ForEach(0 ..< Order.types.count) {
@@ -95,6 +98,9 @@ struct ContentView : View {
 
             }
             .navigationBarTitle(Text("Cupcake Corner"))
+                .presentation($showingConfirmation) {
+                    Alert(title: Text("Thank you"), message: Text(confirmationMessage), dismissButton: .default(Text("OK")))
+            }
         }
     }
     
@@ -113,15 +119,24 @@ struct ContentView : View {
         
         URLSession.shared.dataTask(with: request) {
             guard let data = $0 else {
-                print("No data in response: ")
+                print("No data in response: \($2?.localizedDescription ?? "Unknown Error")")
                 return
             }
+            
+            if let decodedOrder = try? JSONDecoder().decode(Order.self, from: data) {
+                self.confirmationMessage = "Your order for \(decodedOrder.quantity)x \(Order.types[decodedOrder.type].lowercased()) cupcakes is on its way"
+                self.showingConfirmation = true
+            } else {
+                let dataString = String(decoding: data, as: UTF8.self)
+                print("Invalid response: \(dataString)")
+            }
+        }.resume()
             
             // TODO: - start from here next time! 07/08
         }
     }
     
-}
+
 
 #if DEBUG
 struct ContentView_Previews : PreviewProvider {
